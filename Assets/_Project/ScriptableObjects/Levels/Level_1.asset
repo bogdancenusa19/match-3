@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0175b59ef93b13b48b951d70ac8b7954, type: 3}
+  m_Name: Level_1
+  m_EditorClassIdentifier: 
+  levelID: 1
+  boardRows: 9
+  boardCols: 9
+  moves: 20
+  targetScore: 1000
+  score2Stars: 1500
+  score3Stars: 2000
+  objectiveType: 0
+  objectiveTarget: 1000
+  objectiveColorIndex: 0

@@ -8,6 +8,8 @@ public class BoardController : MonoBehaviour
 {
     [SerializeField] private BoardConfig config;
     [SerializeField] private GameObject tilePrefab;
+    [SerializeField] private int bonusLen4 = 20;
+    [SerializeField] private int bonusLen5 = 50;
 
     private TileView[,] tiles;
     private Vector2 origin;
@@ -17,6 +19,11 @@ public class BoardController : MonoBehaviour
     public event Action<int> MovesChanged;
     public int Score { get; private set; }
     public int Moves { get; private set; }
+    public bool IsLocked { get; private set; }
+    public bool IsProcessing => isBusy;
+
+    public void LockBoard() { IsLocked = true; }
+    public void UnlockBoard() { IsLocked = false; }
 
     private void Awake()
     {
@@ -25,6 +32,13 @@ public class BoardController : MonoBehaviour
         GenerateBoard();
         Moves = config.startMoves;
         ScoreChanged?.Invoke(Score);
+        MovesChanged?.Invoke(Moves);
+        StartCoroutine(ResolveBoard());
+    }
+
+    public void SetMoves(int moves)
+    {
+        Moves = Mathf.Max(0, moves);
         MovesChanged?.Invoke(Moves);
     }
 
@@ -68,6 +82,7 @@ public class BoardController : MonoBehaviour
     public void TrySwap(int r1, int c1, int r2, int c2)
     {
         if (isBusy) return;
+        if (IsLocked) return;
         if (!InBounds(r1, c1) || !InBounds(r2, c2)) return;
         if (!AreAdjacent(r1, c1, r2, c2)) return;
         StartCoroutine(SwapRoutine(r1, c1, r2, c2));
@@ -76,6 +91,10 @@ public class BoardController : MonoBehaviour
     private IEnumerator SwapRoutine(int r1, int c1, int r2, int c2)
     {
         isBusy = true;
+
+        Moves = Mathf.Max(0, Moves - 1);
+        MovesChanged?.Invoke(Moves);
+
         var a = tiles[r1, c1];
         var b = tiles[r2, c2];
 
@@ -103,36 +122,85 @@ public class BoardController : MonoBehaviour
             yield break;
         }
 
-        Moves = Mathf.Max(0, Moves - 1);
-        MovesChanged?.Invoke(Moves);
-
         yield return ResolveBoard();
         isBusy = false;
     }
 
     private IEnumerator ResolveBoard()
     {
+        int chain = 0;
         while (true)
         {
             var matches = FindAllMatches();
-            if (matches.Count == 0) yield break;
+            if (matches.Count == 0)
+            {
+                if (!HasAnyPossibleMove())
+                {
+                    yield return ReshuffleBoard();
+                    continue;
+                }
+                yield break;
+            }
+
+            chain++;
+            int gained = matches.Count * config.scorePerTile * chain;
+            gained += ComputeRunBonuses(matches);
+            Score += gained;
+            ScoreChanged?.Invoke(Score);
 
             foreach (var p in matches)
             {
                 var t = tiles[p.r, p.c];
                 if (t)
                 {
-                    Score += config.scorePerTile;
                     Destroy(t.gameObject);
                     tiles[p.r, p.c] = null;
                 }
             }
-            ScoreChanged?.Invoke(Score);
 
             yield return CollapseColumns();
             yield return RefillBoard();
             yield return null;
         }
+    }
+
+    private int ComputeRunBonuses(List<(int r, int c)> matches)
+    {
+        bool[,] inMatch = new bool[config.rows, config.cols];
+        foreach (var p in matches) inMatch[p.r, p.c] = true;
+        int bonus = 0;
+
+        for (int r = 0; r < config.rows; r++)
+        {
+            int c = 0;
+            while (c < config.cols)
+            {
+                if (!inMatch[r, c]) { c++; continue; }
+                int color = tiles[r, c].ColorIndex;
+                int len = 1;
+                c++;
+                while (c < config.cols && inMatch[r, c] && tiles[r, c].ColorIndex == color) { len++; c++; }
+                if (len == 4) bonus += bonusLen4;
+                else if (len >= 5) bonus += bonusLen5;
+            }
+        }
+
+        for (int c = 0; c < config.cols; c++)
+        {
+            int r = 0;
+            while (r < config.rows)
+            {
+                if (!inMatch[r, c]) { r++; continue; }
+                int color = tiles[r, c].ColorIndex;
+                int len = 1;
+                r++;
+                while (r < config.rows && inMatch[r, c] && tiles[r, c].ColorIndex == color) { len++; r++; }
+                if (len == 4) bonus += bonusLen4;
+                else if (len >= 5) bonus += bonusLen5;
+            }
+        }
+
+        return bonus;
     }
 
     private List<(int r, int c)> FindAllMatches()
@@ -174,6 +242,21 @@ public class BoardController : MonoBehaviour
                 }
             }
         }
+        var extraMatches = new HashSet<(int r, int c)>(set);
+        foreach (var p in set)
+        {
+            int color = tiles[p.r, p.c].ColorIndex;
+            if (InBounds(p.r - 1, p.c) && tiles[p.r - 1, p.c] && tiles[p.r - 1, p.c].ColorIndex == color)
+                extraMatches.Add((p.r - 1, p.c));
+            if (InBounds(p.r + 1, p.c) && tiles[p.r + 1, p.c] && tiles[p.r + 1, p.c].ColorIndex == color)
+                extraMatches.Add((p.r + 1, p.c));
+            if (InBounds(p.r, p.c - 1) && tiles[p.r, p.c - 1] && tiles[p.r, p.c - 1].ColorIndex == color)
+                extraMatches.Add((p.r, p.c - 1));
+            if (InBounds(p.r, p.c + 1) && tiles[p.r, p.c + 1] && tiles[p.r, p.c + 1].ColorIndex == color)
+                extraMatches.Add((p.r, p.c + 1));
+        }
+        set = extraMatches;
+
         return new List<(int r, int c)>(set);
     }
 
@@ -266,5 +349,104 @@ public class BoardController : MonoBehaviour
     {
         tile = col ? col.GetComponent<TileView>() : null;
         return tile != null;
+    }
+
+    private bool CheckSwapProducesMatch(int r1, int c1, int r2, int c2)
+    {
+        var a = tiles[r1, c1];
+        var b = tiles[r2, c2];
+        if (a == null || b == null) return false;
+        int ca = a.ColorIndex;
+        int cb = b.ColorIndex;
+        a.SetColorIndex(cb, config.colors[cb]);
+        b.SetColorIndex(ca, config.colors[ca]);
+        bool res = HasMatchAt(r1, c1) || HasMatchAt(r2, c2);
+        a.SetColorIndex(ca, config.colors[ca]);
+        b.SetColorIndex(cb, config.colors[cb]);
+        return res;
+    }
+
+    private bool HasAnyPossibleMove()
+    {
+        for (int r = 0; r < config.rows; r++)
+        {
+            for (int c = 0; c < config.cols; c++)
+            {
+                int r2 = r;
+                int c2 = c + 1;
+                if (InBounds(r2, c2) && CheckSwapProducesMatch(r, c, r2, c2)) return true;
+                r2 = r + 1;
+                c2 = c;
+                if (InBounds(r2, c2) && CheckSwapProducesMatch(r, c, r2, c2)) return true;
+            }
+        }
+        return false;
+    }
+
+    private bool HasImmediateMatches()
+    {
+        for (int r = 0; r < config.rows; r++)
+        {
+            int count = 1;
+            for (int c = 1; c < config.cols; c++)
+            {
+                bool same = tiles[r, c] && tiles[r, c - 1] && tiles[r, c].ColorIndex == tiles[r, c - 1].ColorIndex;
+                if (same) count++;
+                if (!same || c == config.cols - 1)
+                {
+                    if (count >= 3) return true;
+                    count = 1;
+                }
+            }
+        }
+        for (int c = 0; c < config.cols; c++)
+        {
+            int count = 1;
+            for (int r = 1; r < config.rows; r++)
+            {
+                bool same = tiles[r, c] && tiles[r - 1, c] && tiles[r, c].ColorIndex == tiles[r - 1, c].ColorIndex;
+                if (same) count++;
+                if (!same || r == config.rows - 1)
+                {
+                    if (count >= 3) return true;
+                    count = 1;
+                }
+            }
+        }
+        return false;
+    }
+
+    private IEnumerator ReshuffleBoard()
+    {
+        var list = new List<int>(config.rows * config.cols);
+        for (int r = 0; r < config.rows; r++)
+            for (int c = 0; c < config.cols; c++)
+                list.Add(tiles[r, c].ColorIndex);
+
+        int attempts = 0;
+        while (attempts < 50)
+        {
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = UnityEngine.Random.Range(0, i + 1);
+                int tmp = list[i];
+                list[i] = list[j];
+                list[j] = tmp;
+            }
+
+            int idx = 0;
+            for (int r = 0; r < config.rows; r++)
+            {
+                for (int c = 0; c < config.cols; c++)
+                {
+                    int colorIndex = list[idx++];
+                    tiles[r, c].SetColorIndex(colorIndex, config.colors[colorIndex]);
+                }
+            }
+
+            if (!HasImmediateMatches() && HasAnyPossibleMove()) break;
+            attempts++;
+            yield return null;
+        }
     }
 }

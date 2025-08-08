@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2882f2095ed04b54badfae022bf51725, type: 3}
+  m_Name: BoardConfig
+  m_EditorClassIdentifier: 
+  rows: 9
+  cols: 9
+  tileSize: 1
+  colors:
+  - {r: 1, g: 0, b: 0, a: 0}
+  - {r: 0.1425376, g: 0, b: 1, a: 0}
+  - {r: 0.23760104, g: 1, b: 0, a: 0}
+  - {r: 1, g: 0.8950032, b: 0, a: 0}
+  - {r: 1, g: 0, b: 0.8072939, a: 0}
+  - {r: 1, g: 0.5039347, b: 0, a: 0}
+  - {r: 0, g: 0, b: 0, a: 0}
+  swapDuration: 0.15
+  fallSpeed: 12
+  startMoves: 20
+  scorePerTile: 10

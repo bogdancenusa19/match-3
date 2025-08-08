@@ -55,7 +55,17 @@ public class BoardController : MonoBehaviour
                 var go = Instantiate(tilePrefab, transform);
                 go.transform.position = GetWorldPos(r, c);
                 var view = go.GetComponent<TileView>();
-                int colorIndex = UnityEngine.Random.Range(0, Mathf.Max(1, config.colors.Length));
+
+                int colorIndex;
+                do
+                {
+                    colorIndex = UnityEngine.Random.Range(0, Mathf.Max(1, config.colors.Length));
+                }
+                while (
+                    (c >= 2 && tiles[r, c - 1].ColorIndex == colorIndex && tiles[r, c - 2].ColorIndex == colorIndex) ||
+                    (r >= 2 && tiles[r - 1, c].ColorIndex == colorIndex && tiles[r - 2, c].ColorIndex == colorIndex)
+                );
+
                 view.Init(r, c, colorIndex, config.colors[colorIndex], config.tileSize);
                 tiles[r, c] = view;
             }

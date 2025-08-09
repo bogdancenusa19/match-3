@@ -47,13 +47,5 @@ public class LevelRuntime : MonoBehaviour
         if (source == SourceMode.DailyRun) return Mathf.RoundToInt(GetTargetScore() * 1.8f);
         return staticLevel ? staticLevel.score3Stars : 2000;
     }
-
-    public int GetActiveColors(int maxColors)
-    {
-        var s = DailyRunService.I ?? Object.FindFirstObjectByType<DailyRunService>(FindObjectsInactive.Include);
-        if (source == SourceMode.DailyRun && s != null) return s.ActiveColors(maxColors);
-        return maxColors;
-    }
-
     public void RefreshDaily() { }
 }

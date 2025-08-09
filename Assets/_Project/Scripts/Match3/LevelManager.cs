@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using System.Collections.Generic;
 
 public class LevelManager : MonoBehaviour
 {
@@ -9,6 +10,7 @@ public class LevelManager : MonoBehaviour
     [SerializeField] private InputController inputCtrl;
     [SerializeField] private UIModalEndLevel modalEndLevel;
     [SerializeField] private LevelRuntime level;
+    [SerializeField] private UIChestModal chestModal;
 
     private DailyRunService dailyRun;
     private bool ended;
@@ -17,11 +19,12 @@ public class LevelManager : MonoBehaviour
 
     private void Awake()
     {
-        if (!board) board = Object.FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-        if (!inputCtrl) inputCtrl = Object.FindFirstObjectByType<InputController>(FindObjectsInactive.Include);
-        if (!modalEndLevel) modalEndLevel = Object.FindFirstObjectByType<UIModalEndLevel>(FindObjectsInactive.Include);
-        if (!level) level = Object.FindFirstObjectByType<LevelRuntime>(FindObjectsInactive.Include);
-        if (!dailyRun) dailyRun = Object.FindFirstObjectByType<DailyRunService>(FindObjectsInactive.Include);
+        if (!board) board = UnityEngine.Object.FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (!inputCtrl) inputCtrl = UnityEngine.Object.FindFirstObjectByType<InputController>(FindObjectsInactive.Include);
+        if (!modalEndLevel) modalEndLevel = UnityEngine.Object.FindFirstObjectByType<UIModalEndLevel>(FindObjectsInactive.Include);
+        if (!level) level = UnityEngine.Object.FindFirstObjectByType<LevelRuntime>(FindObjectsInactive.Include);
+        if (!dailyRun) dailyRun = UnityEngine.Object.FindFirstObjectByType<DailyRunService>(FindObjectsInactive.Include);
+        if (!chestModal) chestModal = UnityEngine.Object.FindFirstObjectByType<UIChestModal>(FindObjectsInactive.Include);
     }
 
     private void Start()
@@ -90,13 +93,27 @@ public class LevelManager : MonoBehaviour
         ended = true;
         if (inputCtrl) inputCtrl.enabled = false;
         if (board) board.LockBoard();
+
         if (!modalEndLevel) return;
-        if (win) modalEndLevel.ShowWin();
+
+        modalEndLevel.gameObject.SetActive(true);
+
+        if (win)
+        {
+            modalEndLevel.ShowWin();
+        }
         else
         {
             bool canTry = LifeSystem.I != null && LifeSystem.I.Lives > 0;
             modalEndLevel.ShowLose(canTry);
         }
+    }
+
+
+    private System.Collections.IEnumerator ShowChestNextFrame()
+    {
+        yield return null;
+        if (chestModal) chestModal.ShowReady();
     }
 
     public void FinishNow()

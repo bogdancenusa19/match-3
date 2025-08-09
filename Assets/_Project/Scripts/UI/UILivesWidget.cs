@@ -20,7 +20,10 @@ public class UILivesWidget : MonoBehaviour
             {
                 livesText.text = $"Lives: {LifeSystem.I.Lives}";
                 var t = LifeSystem.I.TimeToNext;
-                timerText.text = t == System.TimeSpan.Zero ? "" : $"Next: {t.Minutes:D2}:{t.Seconds:D2}";
+                timerText.text = LifeSystem.I.Lives >= LifeSystem.I.MaxLives
+                ? "Full"
+                : $"Next: {t.Minutes:D2}:{t.Seconds:D2}";
+
             }
             yield return new WaitForSeconds(0.25f);
         }

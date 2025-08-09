@@ -10,6 +10,7 @@ public class LifeSystem : MonoBehaviour
 
     private SaveData data;
 
+    public int MaxLives => maxLives;
     public int Lives => data.lives;
     public TimeSpan TimeToNext => GetTimeToNext();
 

@@ -18,13 +18,13 @@ public class DailyRunService : MonoBehaviour
 {
     public static DailyRunService I { get; private set; }
 
-    [SerializeField] private int baseTarget = 1000;
-    [SerializeField] private int targetPerStage = 150;
-    [SerializeField] private int targetVariance = 120;
     [SerializeField] private int baseMoves = 20;
     [SerializeField] private int movesEveryNStages = 3;
     [SerializeField] private int movesPenalty = 1;
     [SerializeField] private int minMoves = 10;
+
+    [SerializeField] private int scorePerTileForTarget = 10;
+    [SerializeField] private Vector2Int targetFactorRange = new Vector2Int(3, 6);
 
     private DailyRunData data;
     private string path;
@@ -60,10 +60,7 @@ public class DailyRunService : MonoBehaviour
 
     public void EnsureToday()
     {
-        if (data.yyyymmdd != Today)
-        {
-            ResetForNewDay();
-        }
+        if (data.yyyymmdd != Today) ResetForNewDay();
         Recalc();
         Save();
         ParamsChanged?.Invoke();
@@ -77,13 +74,6 @@ public class DailyRunService : MonoBehaviour
         Save();
         ParamsChanged?.Invoke();
     }
-
-    public int ActiveColors(int maxColors)
-    {
-        int inc = 1 + (data.stage - 1) / 3;
-        return Mathf.Clamp(3 + inc, 3, Mathf.Max(3, maxColors));
-    }
-
 
     private void ResetForNewDay()
     {
@@ -99,10 +89,10 @@ public class DailyRunService : MonoBehaviour
     private void Recalc()
     {
         var rnd = new System.Random(data.seed + data.stage * 7919);
-        int variance = rnd.Next(-targetVariance, targetVariance + 1);
-        data.target = Mathf.Max(300, baseTarget + targetPerStage * (data.stage - 1) + variance);
         int steps = (data.stage - 1) / Mathf.Max(1, movesEveryNStages);
         data.moves = Mathf.Max(minMoves, baseMoves - steps * movesPenalty);
+        int factor = Mathf.Clamp(rnd.Next(targetFactorRange.x, targetFactorRange.y + 1), targetFactorRange.x, targetFactorRange.y);
+        data.target = Mathf.Max(300, data.moves * scorePerTileForTarget * factor);
     }
 
     private void LoadOrInit()

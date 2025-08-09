@@ -17,6 +17,9 @@ public class BoardController : MonoBehaviour
 
     public event Action<int> ScoreChanged;
     public event Action<int> MovesChanged;
+    public event Action NoMovesReshuffle;
+    public event Action<int, Vector3> ScorePop;
+
     public int Score { get; private set; }
     public int Moves { get; private set; }
     public bool IsLocked { get; private set; }
@@ -146,6 +149,7 @@ public class BoardController : MonoBehaviour
             {
                 if (!HasAnyPossibleMove())
                 {
+                    if (NoMovesReshuffle != null) NoMovesReshuffle.Invoke();
                     yield return ReshuffleBoard();
                     continue;
                 }
@@ -157,6 +161,14 @@ public class BoardController : MonoBehaviour
             gained += ComputeRunBonuses(matches);
             Score += gained;
             ScoreChanged?.Invoke(Score);
+
+            Vector3 avg = Vector3.zero;
+            for (int i = 0; i < matches.Count; i++)
+            {
+                avg += GetWorldPos(matches[i].r, matches[i].c);
+            }
+            if (matches.Count > 0) avg /= matches.Count;
+            if (ScorePop != null) ScorePop.Invoke(gained, avg);
 
             foreach (var p in matches)
             {
@@ -252,23 +264,39 @@ public class BoardController : MonoBehaviour
                 }
             }
         }
-        var extraMatches = new HashSet<(int r, int c)>(set);
-        foreach (var p in set)
-        {
-            int color = tiles[p.r, p.c].ColorIndex;
-            if (InBounds(p.r - 1, p.c) && tiles[p.r - 1, p.c] && tiles[p.r - 1, p.c].ColorIndex == color)
-                extraMatches.Add((p.r - 1, p.c));
-            if (InBounds(p.r + 1, p.c) && tiles[p.r + 1, p.c] && tiles[p.r + 1, p.c].ColorIndex == color)
-                extraMatches.Add((p.r + 1, p.c));
-            if (InBounds(p.r, p.c - 1) && tiles[p.r, p.c - 1] && tiles[p.r, p.c - 1].ColorIndex == color)
-                extraMatches.Add((p.r, p.c - 1));
-            if (InBounds(p.r, p.c + 1) && tiles[p.r, p.c + 1] && tiles[p.r, p.c + 1].ColorIndex == color)
-                extraMatches.Add((p.r, p.c + 1));
-        }
-        set = extraMatches;
-
+        ExpandAdjacents(set);
         return new List<(int r, int c)>(set);
     }
+
+    private void ExpandAdjacents(HashSet<(int r, int c)> baseSet)
+    {
+        var extra = new List<(int r, int c)>();
+        foreach (var p in baseSet)
+        {
+            var center = tiles[p.r, p.c];
+            if (!center) continue;
+            int color = center.ColorIndex;
+
+            AddIfSameColor(p.r - 1, p.c, color, baseSet, extra);
+            AddIfSameColor(p.r + 1, p.c, color, baseSet, extra);
+            AddIfSameColor(p.r, p.c - 1, color, baseSet, extra);
+            AddIfSameColor(p.r, p.c + 1, color, baseSet, extra);
+        }
+        for (int i = 0; i < extra.Count; i++) baseSet.Add(extra[i]);
+    }
+
+    private void AddIfSameColor(int r, int c, int color, HashSet<(int r, int c)> baseSet, List<(int r, int c)> extra)
+    {
+        if (!InBounds(r, c)) return;
+        var t = tiles[r, c];
+        if (!t) return;
+        if (t.ColorIndex != color) return;
+        var key = (r, c);
+        if (baseSet.Contains(key)) return;
+        if (extra.Contains(key)) return;
+        extra.Add(key);
+    }
+
 
     private bool HasMatchAt(int r, int c)
     {
